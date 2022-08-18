@@ -1,0 +1,6 @@
+/bin
+.idea/
+.DS_Store
+
+protoc-gen-druid-schema
+examples/druid/**
