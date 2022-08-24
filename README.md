@@ -52,3 +52,6 @@ message Baz {
 
 Conceptually, after input data records are read, Druid applies ingestion spec components in a particular order: first flattenSpec (if any), then timestampSpec, then transformSpec, and finally dimensionsSpec and metricsSpec. Keep this in mind when writing your ingestion spec.
 
+
+## Query filters
+Support [Selector filter](https://druid.apache.org/docs/latest/querying/filters.html#selector-filter), [Logical expression filters](https://druid.apache.org/docs/latest/querying/filters.html#logical-expression-filters)

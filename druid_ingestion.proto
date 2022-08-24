@@ -1,0 +1,16 @@
+syntax = "proto3";
+package gen_druid_spec;
+
+option go_package = "github.com/nguyensinhtu/protoc-gen-druid-spec/protos";
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.MessageOptions {
+  DruidIngestionOptions druid_opts = 2021;
+}
+
+message DruidIngestionOptions {
+  // If not blank, indicates the message is a type of record to be stored into Druid.
+  string data_source_name = 1;
+  optional bool use_field_discovery = 2;
+}

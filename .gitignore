@@ -2,5 +2,5 @@
 .idea/
 .DS_Store
 
-protoc-gen-druid-schema
+protoc-gen-druid-spec
 examples/druid/**
