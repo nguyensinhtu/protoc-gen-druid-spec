@@ -273,7 +273,7 @@ func convertField(
 			if _, exists := supportedMultiValueHanldingOpts[opt.Dimension.MultiValueHandling]; exists {
 				dimensionField.MultiValueHandling = opt.Dimension.MultiValueHandling
 			} else {
-				return returnEmptyResultWithError(fmt.Errorf("unrecognized multi-value handling option, get %s", opt.Dimension.MultiValueHandling))
+				return returnEmptyResultWithError(fmt.Errorf("unsupported multi_value_handling option, get '%s'", opt.Dimension.MultiValueHandling))
 			}
 		}
 	}
