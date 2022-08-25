@@ -26,10 +26,9 @@ jobs:
       run: go get -u github.com/golang/protobuf/protoc-gen-go
     - name: Checkout code
       uses: actions/checkout@v2
-    - name: Lint
-      uses: golangci/golangci-lint-action@v2
-      with:
-        version: v1.29
-        args: --timeout 10m -v
+    - name: format 
+      run: go fmt ./...
+    - name: Vet
+      run: go vet ./...
     - name: Test
       run: go test ./...
