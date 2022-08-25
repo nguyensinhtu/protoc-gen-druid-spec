@@ -1,5 +1,11 @@
-on: [push, pull_request]
-name: Test
+name: Test plugin
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 jobs:
   test:
     strategy:
@@ -12,6 +18,8 @@ jobs:
       uses: actions/setup-go@v2
       with:
         go-version: ${{ matrix.go-version }}
+    - name: Checkout code
+      uses: actions/checkout@v2
     - name: Install protoc
       uses: arduino/setup-protoc@v1
     - name: Install protoc-gen-go
