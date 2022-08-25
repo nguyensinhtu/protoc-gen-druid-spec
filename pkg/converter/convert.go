@@ -81,6 +81,11 @@ var (
 		"doubleMean":  true,
 		"thetaSketch": true,
 	}
+
+	supportedGranularities = map[string]bool{
+		"none": true, "all": true, "second": true, "minute": true, "fifteen_minute": true, "thirty_minute": true,
+		"day": true, "week": true, "month": true, "quarter": true, "year": true,
+	}
 )
 
 type DimensionField struct {
@@ -118,6 +123,13 @@ type FlattenField struct {
 type FlattenSpec struct {
 	FlattenFields     []*FlattenField `json:"fields,omitempty"`
 	UseFieldDiscovery bool            `json:"useFieldDiscovery"`
+}
+
+type GranularitySpec struct {
+	Type    string `json:"type,omitempty"`
+	Segment string `json:"segmentGranularity,omitempty"`
+	Query   string `json:"queryGranularity,omitempty"`
+	Rollup  bool   `json:"rollup"`
 }
 
 type TransformField struct {
@@ -287,6 +299,9 @@ func convertField(
 			IsInputThetaSketch: opt.Metric.IsInputThetaSketch,
 			Size:               16384,
 			FieldName:          prefixName + fieldName,
+		}
+		if isFlattened {
+			metricField.FieldName = fmt.Sprintf("%s_%s", prefixName, fieldName)
 		}
 		if len(opt.Metric.Type) > 0 {
 			if _, ok = supportedMetricAggregators[opt.Metric.Type]; ok {
@@ -469,14 +484,36 @@ func convertFile(file *descriptor.FileDescriptorProto) ([]*plugin.CodeGeneratorR
 			flattenSpec = &FlattenSpec{UseFieldDiscovery: *opts.UseFieldDiscovery}
 		}
 
+		var granularitySpec *GranularitySpec
+		if len(opts.QueryGranularity) > 0 {
+			if granularitySpec == nil {
+				granularitySpec = &GranularitySpec{Type: "uniform", Rollup: false}
+			}
+			if _, exist := supportedGranularities[strings.ToLower(opts.QueryGranularity)]; !exist {
+				return nil, fmt.Errorf("unsupported queryGranularity, got %s", opts.QueryGranularity)
+			}
+			granularitySpec.Query = strings.ToLower(opts.QueryGranularity)
+		}
+
+		if len(opts.SegmentGranularity) > 0 {
+			if granularitySpec == nil {
+				granularitySpec = &GranularitySpec{Type: "uniform", Rollup: false}
+			}
+			if _, exist := supportedGranularities[strings.ToLower(opts.SegmentGranularity)]; !exist {
+				return nil, fmt.Errorf("unsupported segmentGranularity, got %s", opts.QueryGranularity)
+			}
+			granularitySpec.Segment = strings.ToLower(opts.SegmentGranularity)
+		}
+
 		ingestion := map[string]interface{}{
 			"spec": map[string]interface{}{
 				"dataSchema": struct {
-					DataSource     string          `json:"dataSource,omitempty"`
-					TimestampSpec  *TimestampField `json:"timestampSpec,omitempty"`
-					DimensionsSpec *DimensionSpec  `json:"dimensionsSpec,omitempty"`
-					MetricsSpec    []*MetricField  `json:"metricsSpec,omitempty"`
-				}{opts.GetDataSourceName(), timestampField, &DimensionSpec{Dimensions: dimensionFields}, metricFields},
+					DataSource      string           `json:"dataSource,omitempty"`
+					TimestampSpec   *TimestampField  `json:"timestampSpec,omitempty"`
+					DimensionsSpec  *DimensionSpec   `json:"dimensionsSpec,omitempty"`
+					MetricsSpec     []*MetricField   `json:"metricsSpec,omitempty"`
+					GranularitySpec *GranularitySpec `json:"granularitySpec,omitempty"`
+				}{opts.GetDataSourceName(), timestampField, &DimensionSpec{Dimensions: dimensionFields}, metricFields, granularitySpec},
 				"ioConfig": map[string]interface{}{
 					"inputFormat": struct {
 						Type        string       `json:"type,omitempty"`

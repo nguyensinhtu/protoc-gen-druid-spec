@@ -23,22 +23,25 @@
      "isInputThetaSketch": false,
      "fieldName": "client_id",
      "size": 16384
+    },
+    {
+     "name": "a_metric",
+     "type": "thetaSketch",
+     "isInputThetaSketch": false,
+     "fieldName": "baz__a",
+     "size": 16384
     }
-   ]
+   ],
+   "granularitySpec": {
+    "type": "uniform",
+    "segmentGranularity": "day",
+    "queryGranularity": "day",
+    "rollup": false
+   }
   },
   "ioConfig": {
    "inputFormat": {
-    "type": "json",
-    "flattenSpec": {
-     "fields": [
-      {
-       "type": "jq",
-       "name": "baz__a",
-       "expr": ".baz.a"
-      }
-     ],
-     "useFieldDiscovery": false
-    }
+    "type": "json"
    }
   }
  }

@@ -13,4 +13,11 @@ message DruidIngestionOptions {
   // If not blank, indicates the message is a type of record to be stored into Druid.
   string data_source_name = 1;
   optional bool use_field_discovery = 2;
+
+  // if ingest from kafka
+  string topic = 3;
+
+  string segment_granularity = 4;
+  string query_granularity = 5;
+  optional bool rollup = 6;
 }

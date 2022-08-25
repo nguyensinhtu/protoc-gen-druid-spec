@@ -9,8 +9,11 @@ import "google/protobuf/wrappers.proto";
 import "google/protobuf/timestamp.proto";
 
 message Bar {
-  option (gen_druid_spec.druid_opts).data_source_name =
-      "bar_proto3_table";
+  option (gen_druid_spec.druid_opts) = {
+    data_source_name: "bar_proto3_table"
+    segment_granularity: "day"
+    query_granularity: "day"
+  };
 
   string client_id = 1 [ (gen_druid_spec.spec) = {
     dimension : {
@@ -29,5 +32,9 @@ message Bar {
 }
 
 message Baz {
-  int32 a = 1;
+  int32 a = 1 [ (gen_druid_spec.spec).metric = {
+    metric_name: "a_metric"
+    size: 16384 
+    type: "thetaSketch"
+  }];
 }
