@@ -393,7 +393,6 @@ func convertMessageType(
 	}
 
 	parentMessages[msg] = true
-	fmt.Println("true for ", msg)
 	timestampField = nil
 	for _, fieldDesc := range msg.GetField() {
 		extractedFalttenFields, extractedDimensionFields, extractedMetricFields, extractedTimestampField, err := convertField(curPkg,
@@ -487,7 +486,7 @@ func convertFile(file *descriptor.FileDescriptorProto) ([]*plugin.CodeGeneratorR
 			},
 		}
 
-		ingestionJson, err := json.MarshalIndent(ingestion, "", "")
+		ingestionJson, err := json.MarshalIndent(ingestion, "", " ")
 		if err != nil {
 			glog.Error("Failed to encode schema", err)
 			return nil, err

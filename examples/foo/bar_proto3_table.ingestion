@@ -1,0 +1,45 @@
+{
+ "spec": {
+  "dataSchema": {
+   "dataSource": "bar_proto3_table",
+   "dimensionsSpec": {
+    "dimensions": [
+     {
+      "name": "client_id",
+      "type": "string",
+      "multiValueHandling": "SORTED_SET",
+      "createBitmapIndex": true
+     },
+     {
+      "name": "baz__a",
+      "type": "long"
+     }
+    ]
+   },
+   "metricsSpec": [
+    {
+     "name": "client_id_sketch",
+     "type": "thetaSketch",
+     "isInputThetaSketch": false,
+     "fieldName": "client_id",
+     "size": 16384
+    }
+   ]
+  },
+  "ioConfig": {
+   "inputFormat": {
+    "type": "json",
+    "flattenSpec": {
+     "fields": [
+      {
+       "type": "jq",
+       "name": "baz__a",
+       "expr": ".baz.a"
+      }
+     ],
+     "useFieldDiscovery": false
+    }
+   }
+  }
+ }
+}

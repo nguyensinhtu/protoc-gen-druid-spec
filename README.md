@@ -2,7 +2,7 @@
 
 # Installation
 ```cmd
-go install https://github.com/nguyensinhtu/protoc-gen-druid-spec@latest
+go install github.com/nguyensinhtu/protoc-gen-druid-spec@latest
 ```
 
 # Usage
