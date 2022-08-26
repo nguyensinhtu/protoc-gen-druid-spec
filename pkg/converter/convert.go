@@ -132,32 +132,6 @@ type GranularitySpec struct {
 	Rollup  bool   `json:"rollup"`
 }
 
-type TransformField struct {
-	Type       string `json:"Type,omitempty"`
-	Name       string `json:"Name,omitempty"`
-	Expression string `json:"expression,omitempty"`
-}
-
-type DataSchema struct {
-	DataSource    string          `json:"datasource,omitempty"`
-	DimensionSpec *DimensionSpec  `json:"dimensionsSpec,omitempty"`
-	TimestampSpec *TimestampField `json:"timestampSpec,omitempty"`
-	MetricSpec    []*MetricField  `json:"metricsSpec,omitempty"`
-}
-
-type InputFormat struct {
-	Type        string `json:"type"`
-	FlattenSpec *FlattenSpec
-}
-
-type IOConfig struct {
-	InputFormat *InputFormat
-}
-
-type Ingestion struct {
-	FlattenSpec *FlattenSpec `json:"flattenSpec"`
-}
-
 func registerType(pkgName *string, msg *descriptor.DescriptorProto, comments Comments, path string) {
 	pkg := globalPkg
 	if pkgName != nil {
@@ -188,7 +162,7 @@ func registerType(pkgName *string, msg *descriptor.DescriptorProto, comments Com
 	pkg.path[msg.GetName()] = path
 }
 
-func returnEmptyResultWithError(err error) ([]*FlattenField, []*DimensionField, []*MetricField, *TimestampField, error) {
+func emptyResultWithError(err error) ([]*FlattenField, []*DimensionField, []*MetricField, *TimestampField, error) {
 	return nil, nil, nil, nil, err
 }
 
@@ -204,11 +178,11 @@ func convertField(
 	fieldName := desc.GetName()
 	fieldType, ok := typeFromFieldType[desc.GetType()]
 	if !ok {
-		return returnEmptyResultWithError(fmt.Errorf("unrecognized field type: %s", desc.GetType().String()))
+		return emptyResultWithError(fmt.Errorf("unrecognized field type: %s", desc.GetType().String()))
 	}
 	fieldMode, ok := modeFromFieldLabel[desc.GetLabel()]
 	if !ok {
-		return returnEmptyResultWithError(fmt.Errorf("unrecognized field label: %s", desc.GetLabel().String()))
+		return emptyResultWithError(fmt.Errorf("unrecognized field label: %s", desc.GetLabel().String()))
 	}
 
 	isFlattened := false
@@ -257,11 +231,11 @@ func convertField(
 	}
 
 	if opt.Flatten != nil && fieldType != "record" {
-		return returnEmptyResultWithError(fmt.Errorf("can not apply flatten for primitive field, got field %s, type %s", desc.GetName(), desc.GetType().String()))
+		return emptyResultWithError(fmt.Errorf("can not apply flatten for primitive field, got field %s, type %s", desc.GetName(), desc.GetType().String()))
 	}
 
 	if opt.Timestamp != nil && fieldType == "record" {
-		return returnEmptyResultWithError(fmt.Errorf("can not apply timestamp opts for message field %s", desc.GetName()))
+		return emptyResultWithError(fmt.Errorf("can not apply timestamp opts for message field %s", desc.GetName()))
 	}
 
 	if !isFlattened && opt.Timestamp != nil {
@@ -274,7 +248,7 @@ func convertField(
 	}
 
 	if opt.Flatten != nil && (opt.Dimension != nil || opt.Metric != nil || opt.Timestamp != nil) {
-		return returnEmptyResultWithError(fmt.Errorf("can not apply flatten opts with dimension/metric/timestamp opts for one field '%s'", desc.GetName()))
+		return emptyResultWithError(fmt.Errorf("can not apply flatten opts with dimension/metric/timestamp opts for one field '%s'", desc.GetName()))
 	}
 
 	if opt.Dimension != nil {
@@ -285,13 +259,13 @@ func convertField(
 			if _, exists := supportedMultiValueHanldingOpts[opt.Dimension.MultiValueHandling]; exists {
 				dimensionField.MultiValueHandling = opt.Dimension.MultiValueHandling
 			} else {
-				return returnEmptyResultWithError(fmt.Errorf("unsupported multi_value_handling option, get '%s'", opt.Dimension.MultiValueHandling))
+				return emptyResultWithError(fmt.Errorf("unsupported multi_value_handling option, get '%s'", opt.Dimension.MultiValueHandling))
 			}
 		}
 	}
 	if opt.Metric != nil {
 		if len(opt.Metric.MetricName) <= 0 {
-			return returnEmptyResultWithError(fmt.Errorf("metric field name must be set"))
+			return emptyResultWithError(fmt.Errorf("metric field name must be set"))
 		}
 		metricField := &MetricField{
 			MetricFieldName:    opt.Metric.MetricName,
@@ -307,7 +281,7 @@ func convertField(
 			if _, ok = supportedMetricAggregators[opt.Metric.Type]; ok {
 				metricField.ApproxType = opt.Metric.Type
 			} else {
-				return returnEmptyResultWithError(fmt.Errorf("not supported metric type %s", opt.Metric.Type))
+				return emptyResultWithError(fmt.Errorf("not supported metric type %s", opt.Metric.Type))
 			}
 		}
 		if opt.Metric.Size > 0 {
@@ -331,13 +305,13 @@ func convertField(
 		}
 
 		newPath := fmt.Sprintf("%s.%s", path, fieldName)
-		nestedFlattendFields, nestedDimensionFields, nestedMetricFields, err := flattenFieldsForType(curPkg,
+		nestedFlattendFields, nestedDimensionFields, nestedMetricFields, _, err := flattenFieldsForType(curPkg,
 			desc.GetTypeName(),
 			nestedPrefixName,
 			parentMessages,
 			opt.Flatten, newPath)
 		if err != nil {
-			return returnEmptyResultWithError(err)
+			return emptyResultWithError(err)
 		}
 		dimensionFields = append(dimensionFields, nestedDimensionFields...)
 		flattenFields = append(flattenFields, nestedFlattendFields...)
@@ -360,25 +334,25 @@ func flattenFieldsForType(curPkg *ProtoPackage,
 	parentMessages map[*descriptor.DescriptorProto]bool,
 	flattenOpts *protos.DruidFlattenFieldOptions,
 	path string,
-) ([]*FlattenField, []*DimensionField, []*MetricField, error) {
+) ([]*FlattenField, []*DimensionField, []*MetricField, *TimestampField, error) {
 	recordType, ok, comments, _ := curPkg.lookupType(typeName)
 	if !ok {
-		return nil, nil, nil, fmt.Errorf("no such type named %s", typeName)
+		return emptyResultWithError(fmt.Errorf("no such type named %s", typeName))
 	}
 
 	fieldMsgOpts, err := getDruidOpts(recordType)
 	if err != nil {
-		return nil, nil, nil, err
+		return emptyResultWithError(err)
 	}
 
-	flattenFields, dimensionFields, metricFields, _, err := convertMessageType(curPkg, recordType, fieldMsgOpts, parentMessages, prefixName, comments, path)
+	flattenFields, dimensionFields, metricFields, timestampField, err := convertMessageType(curPkg, recordType, fieldMsgOpts, parentMessages, prefixName, comments, path)
 	if err != nil {
-		return nil, nil, nil, err
+		return emptyResultWithError(err)
 	}
 	flattenType := "jq"
 	if len(flattenOpts.Type) > 0 {
 		if flattenOpts.Type != "jq" {
-			return nil, nil, nil, fmt.Errorf("unsupproted flatten type, got %s", flattenOpts.Type)
+			return emptyResultWithError(fmt.Errorf("unsupproted flatten type, got %s", flattenOpts.Type))
 		}
 		flattenType = flattenOpts.Type
 	}
@@ -386,7 +360,7 @@ func flattenFieldsForType(curPkg *ProtoPackage,
 	for _, fopts := range flattenFields {
 		fopts.Type = flattenType
 	}
-	return flattenFields, dimensionFields, metricFields, err
+	return flattenFields, dimensionFields, metricFields, timestampField, err
 }
 
 func convertMessageType(
@@ -420,7 +394,7 @@ func convertMessageType(
 
 		if err != nil {
 			glog.Errorf("Failed to convert field %s in %s: %v", fieldDesc.GetName(), msg.GetName(), err)
-			return nil, nil, nil, nil, err
+			return emptyResultWithError(err)
 		}
 
 		if extractedDimensionFields != nil {
@@ -434,7 +408,7 @@ func convertMessageType(
 			metricFields = append(metricFields, extractedMetricFields...)
 		}
 		if extractedTimestampField != nil && timestampField != nil {
-			return nil, nil, nil, nil, fmt.Errorf("mulitple timestamp options found in one message %s at field %s", msg.GetName(), fieldDesc.GetName())
+			return emptyResultWithError(fmt.Errorf("mulitple timestamp options found in one message %s at field %s", msg.GetName(), fieldDesc.GetName()))
 		}
 		timestampField = extractedTimestampField
 	}
