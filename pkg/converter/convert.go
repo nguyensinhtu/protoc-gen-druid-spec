@@ -473,6 +473,9 @@ func convertFile(file *descriptor.FileDescriptorProto) ([]*plugin.CodeGeneratorR
 			}
 			granularitySpec.Segment = strings.ToLower(opts.SegmentGranularity)
 		}
+		if opts.Rollup != nil {
+			granularitySpec.Rollup = *opts.Rollup
+		}
 
 		ingestion := map[string]interface{}{
 			"spec": map[string]interface{}{
