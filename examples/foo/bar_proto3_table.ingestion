@@ -35,8 +35,9 @@
    "granularitySpec": {
     "type": "uniform",
     "segmentGranularity": "day",
-    "queryGranularity": "day",
-    "rollup": false
+    "queryGranularity": "none",
+    "rollup": true,
+    "intervals": []
    }
   },
   "ioConfig": {

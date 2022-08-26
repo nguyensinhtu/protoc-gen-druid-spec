@@ -113,6 +113,13 @@ func TestIgnoreNonTargetMessage(t *testing.T) {
 									"type": "long"
 								}
 							]
+						},
+						"granularitySpec": {
+							"type": "uniform",
+							"segmentGranularity": "day",
+							"queryGranularity": "none",
+							"intervals": [],
+							"rollup": true
 						}
 					},
 					"ioConfig": {
@@ -160,6 +167,13 @@ func TestIgnoreNonTargetFile(t *testing.T) {
 									"type": "long"
 								}
 							]
+						},
+						"granularitySpec": {
+							"type": "uniform",
+							"segmentGranularity": "day",
+							"queryGranularity": "none",
+							"intervals": [],
+							"rollup": true
 						}
 					},
 					"ioConfig": {
@@ -211,6 +225,13 @@ func TestStopsAtRecursiveMessage(t *testing.T) {
 									"type": "string"
 								}
 							]
+						},
+						"granularitySpec": {
+							"type": "uniform",
+							"segmentGranularity": "day",
+							"queryGranularity": "none",
+							"intervals": [],
+							"rollup": true
 						}
 					},
 					"ioConfig": {
@@ -423,6 +444,13 @@ func TestTypes(t *testing.T) {
 									"type": "string"
 								}
 							]
+						},
+						"granularitySpec": {
+							"type": "uniform",
+							"segmentGranularity": "day",
+							"queryGranularity": "none",
+							"intervals": [],
+							"rollup": true
 						}
 					},
 					"ioConfig": {
@@ -547,6 +575,13 @@ func TestWellKnownTypes(t *testing.T) {
 									"type": "string"
 								}
 							]
+						},
+						"granularitySpec": {
+							"type": "uniform",
+							"segmentGranularity": "day",
+							"queryGranularity": "none",
+							"intervals": [],
+							"rollup": true
 						}
 					},
 					"ioConfig": {

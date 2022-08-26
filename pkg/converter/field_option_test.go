@@ -48,7 +48,14 @@ func TestIgnore(t *testing.T) {
 								"name": "i1"
 							}
 						]
-					} 
+					},
+					"granularitySpec": {
+						"type": "uniform",
+						"segmentGranularity": "day",
+						"queryGranularity": "none",
+						"intervals": [],
+						"rollup": true
+					}
 				},
 				"ioConfig": {
 					"inputFormat": {
@@ -122,7 +129,14 @@ func TestMetric(t *testing.T) {
 							"size": 16384,
 							"isInputThetaSketch": false
 						}
-					] 
+					],
+					"granularitySpec": {
+						"type": "uniform",
+						"segmentGranularity": "day",
+						"queryGranularity": "none",
+						"intervals": [],
+						"rollup": true
+					} 
 				},
 				"ioConfig": {
 					"inputFormat": {
@@ -218,6 +232,13 @@ func TestFlatten(t *testing.T) {
 								"type": "long"
 							}
 						]
+					},
+					"granularitySpec": {
+						"type": "uniform",
+						"segmentGranularity": "day",
+						"queryGranularity": "none",
+						"intervals": [],
+						"rollup": true
 					}
 				},
 				"ioConfig": {
@@ -291,6 +312,13 @@ func TestDimension(t *testing.T) {
 								"createBitmapIndex": true
 							}
 						]
+					},
+					"granularitySpec": {
+						"type": "uniform",
+						"segmentGranularity": "day",
+						"queryGranularity": "none",
+						"intervals": [],
+						"rollup": true
 					}
 				},
 				"ioConfig": {
@@ -366,6 +394,13 @@ func TestIgnoreNested(t *testing.T) {
 								"type": "long"
 							}
 						]
+					},
+					"granularitySpec": {
+						"type": "uniform",
+						"segmentGranularity": "day",
+						"queryGranularity": "none",
+						"intervals": [],
+						"rollup": true
 					}
 				},
 				"ioConfig": {

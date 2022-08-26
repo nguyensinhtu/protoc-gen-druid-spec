@@ -126,10 +126,11 @@ type FlattenSpec struct {
 }
 
 type GranularitySpec struct {
-	Type    string `json:"type,omitempty"`
-	Segment string `json:"segmentGranularity,omitempty"`
-	Query   string `json:"queryGranularity,omitempty"`
-	Rollup  bool   `json:"rollup"`
+	Type      string    `json:"type,omitempty"`
+	Segment   string    `json:"segmentGranularity,omitempty"`
+	Query     string    `json:"queryGranularity,omitempty"`
+	Rollup    bool      `json:"rollup"`
+	Intervals []*string `json:"intervals"`
 }
 
 func registerType(pkgName *string, msg *descriptor.DescriptorProto, comments Comments, path string) {
@@ -458,11 +459,8 @@ func convertFile(file *descriptor.FileDescriptorProto) ([]*plugin.CodeGeneratorR
 			flattenSpec = &FlattenSpec{UseFieldDiscovery: *opts.UseFieldDiscovery}
 		}
 
-		var granularitySpec *GranularitySpec
+		granularitySpec := &GranularitySpec{Type: "uniform", Rollup: true, Query: "none", Segment: "day", Intervals: make([]*string, 0)}
 		if len(opts.QueryGranularity) > 0 {
-			if granularitySpec == nil {
-				granularitySpec = &GranularitySpec{Type: "uniform", Rollup: false}
-			}
 			if _, exist := supportedGranularities[strings.ToLower(opts.QueryGranularity)]; !exist {
 				return nil, fmt.Errorf("unsupported queryGranularity, got %s", opts.QueryGranularity)
 			}
@@ -470,9 +468,6 @@ func convertFile(file *descriptor.FileDescriptorProto) ([]*plugin.CodeGeneratorR
 		}
 
 		if len(opts.SegmentGranularity) > 0 {
-			if granularitySpec == nil {
-				granularitySpec = &GranularitySpec{Type: "uniform", Rollup: false}
-			}
 			if _, exist := supportedGranularities[strings.ToLower(opts.SegmentGranularity)]; !exist {
 				return nil, fmt.Errorf("unsupported segmentGranularity, got %s", opts.QueryGranularity)
 			}

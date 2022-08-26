@@ -14,39 +14,98 @@ protoc --druid-spec_out=path/to/out/dir foo.proto --proto_path=. --proto_path=<p
 
 # Example
 ```cmd
-syntax = "proto2";
+syntax = "proto3";
+
 package foo;
-import "bq_table.proto";
-import "bq_field.proto";
+
+import "druid_ingestion.proto";
+import "druid_spec.proto";
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+
 
 message Bar {
-  option (gen_druid_spec.druid_opts).data_source = "druid_foo_data_source";
+  option (gen_druid_spec.druid_opts) = {
+    data_source_name: "bar_proto3_table"
+    segment_granularity: "day"
+    query_granularity: "day"
+  };
 
-  required string id = 1 [
-    (gen_druid_spec.dimention) = {
-      name: "event_type" // if not set will use proto name
-      create_bitmap_index: false // default is true for string type
-      multi_value_handling: "SORTED_ARRAY" // default is SORTED_ARRAY for string
+  string client_id = 1 [ (gen_druid_spec.spec) = {
+    dimension : {
+      multi_value_handling : "SORTED_SET"
+      create_bitmap_index : true
     }
-  ];
+    metric : {
+      metric_name : "client_id_sketch"
+      size : 16384
+      type : "thetaSketch"
+    }
+  } ];
 
-  required string datetime_field = 2 [
-    (gen_druid_spec.timestamp_spec) = {
-      name: "time_field"
-      format: ""
-    }
-  ];
-
-  Baz baz = 3 [
-    (gen_druid_schema.flatten) = {
-      prefix: "baz_" // all nested fields will be flatten with prefix 'baz_'
-      type: "jq"
-    }
-  ];
+  Baz baz = 2 
+    [ (gen_druid_spec.spec).flatten = {prefix : "baz_" } ];;
 }
 
 message Baz {
-  required int32 a = 1;
+  int32 a = 1 [ (gen_druid_spec.spec).metric = {
+    metric_name: "a_metric"
+    size: 16384 
+    type: "thetaSketch"
+  }];
+}
+```
+Output
+```json
+{
+ "spec": {
+  "dataSchema": {
+   "dataSource": "bar_proto3_table",
+   "dimensionsSpec": {
+    "dimensions": [
+     {
+      "name": "client_id",
+      "type": "string",
+      "multiValueHandling": "SORTED_SET",
+      "createBitmapIndex": true
+     },
+     {
+      "name": "baz__a",
+      "type": "long"
+     }
+    ]
+   },
+   "metricsSpec": [
+    {
+     "name": "client_id_sketch",
+     "type": "thetaSketch",
+     "isInputThetaSketch": false,
+     "fieldName": "client_id",
+     "size": 16384
+    },
+    {
+     "name": "a_metric",
+     "type": "thetaSketch",
+     "isInputThetaSketch": false,
+     "fieldName": "baz__a",
+     "size": 16384
+    }
+   ],
+   "granularitySpec": {
+    "type": "uniform",
+    "segmentGranularity": "day",
+    "queryGranularity": "none",
+    "rollup": true,
+    "intervals": []
+   }
+  },
+  "ioConfig": {
+   "inputFormat": {
+    "type": "json"
+   }
+  }
+ }
 }
 ```
 
