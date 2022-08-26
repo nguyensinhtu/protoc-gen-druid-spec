@@ -13,7 +13,7 @@ protoc --druid-spec_out=path/to/out/dir foo.proto --proto_path=. --proto_path=<p
 ```
 
 # Example
-```cmd
+```protobuf
 syntax = "proto3";
 
 package foo;
@@ -23,7 +23,6 @@ import "druid_spec.proto";
 
 import "google/protobuf/wrappers.proto";
 import "google/protobuf/timestamp.proto";
-
 
 message Bar {
   option (gen_druid_spec.druid_opts) = {
@@ -46,6 +45,8 @@ message Bar {
 
   Baz baz = 2 
     [ (gen_druid_spec.spec).flatten = {prefix : "baz_" } ];;
+
+  TimeSpec time_spec = 4[ (gen_druid_spec.spec).flatten = { prefix : "time_spec_" } ];
 }
 
 message Baz {
@@ -55,6 +56,11 @@ message Baz {
     type: "thetaSketch"
   }];
 }
+
+message TimeSpec {
+  string date_key = 1[ (gen_druid_spec.spec).timestamp = {} ];
+}
+
 ```
 Output
 ```json
@@ -62,6 +68,9 @@ Output
  "spec": {
   "dataSchema": {
    "dataSource": "bar_proto3_table",
+   "timestampSpec": {
+    "column": "time_spec__date_key"
+   },
    "dimensionsSpec": {
     "dimensions": [
      {
@@ -74,6 +83,9 @@ Output
       "name": "baz__a",
       "type": "long"
      }
+    ],
+    "dimensionExclusions": [
+     "time_spec__date_key"
     ]
    },
    "metricsSpec": [
@@ -95,14 +107,29 @@ Output
    "granularitySpec": {
     "type": "uniform",
     "segmentGranularity": "day",
-    "queryGranularity": "none",
+    "queryGranularity": "day",
     "rollup": true,
     "intervals": []
    }
   },
   "ioConfig": {
    "inputFormat": {
-    "type": "json"
+    "type": "json",
+    "flattenSpec": {
+     "fields": [
+      {
+       "type": "jq",
+       "name": "baz__a",
+       "expr": ".baz.a"
+      },
+      {
+       "type": "jq",
+       "name": "time_spec__date_key",
+       "expr": ".time_spec.date_key"
+      }
+     ],
+     "useFieldDiscovery": false
+    }
    }
   }
  }

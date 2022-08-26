@@ -2,6 +2,9 @@
  "spec": {
   "dataSchema": {
    "dataSource": "bar_proto3_table",
+   "timestampSpec": {
+    "column": "time_spec__date_key"
+   },
    "dimensionsSpec": {
     "dimensions": [
      {
@@ -14,6 +17,9 @@
       "name": "baz__a",
       "type": "long"
      }
+    ],
+    "dimensionExclusions": [
+     "time_spec__date_key"
     ]
    },
    "metricsSpec": [
@@ -35,14 +41,29 @@
    "granularitySpec": {
     "type": "uniform",
     "segmentGranularity": "day",
-    "queryGranularity": "none",
+    "queryGranularity": "day",
     "rollup": true,
     "intervals": []
    }
   },
   "ioConfig": {
    "inputFormat": {
-    "type": "json"
+    "type": "json",
+    "flattenSpec": {
+     "fields": [
+      {
+       "type": "jq",
+       "name": "baz__a",
+       "expr": ".baz.a"
+      },
+      {
+       "type": "jq",
+       "name": "time_spec__date_key",
+       "expr": ".time_spec.date_key"
+      }
+     ],
+     "useFieldDiscovery": false
+    }
    }
   }
  }

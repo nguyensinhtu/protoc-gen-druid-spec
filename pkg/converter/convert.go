@@ -100,6 +100,19 @@ type DimensionSpec struct {
 	DimensionExclusions []string          `json:"dimensionExclusions,omitempty"`
 }
 
+func (spec *DimensionSpec) merge(other *DimensionSpec) {
+	if spec.Dimensions == nil {
+		spec.Dimensions = other.Dimensions
+	} else if other.Dimensions != nil {
+		spec.Dimensions = append(spec.Dimensions, other.Dimensions...)
+	}
+	if spec.DimensionExclusions == nil {
+		spec.DimensionExclusions = other.DimensionExclusions
+	} else if other.DimensionExclusions != nil {
+		spec.DimensionExclusions = append(spec.DimensionExclusions, other.DimensionExclusions...)
+	}
+}
+
 type TimestampField struct {
 	FieldName    string `json:"column,omitempty"`
 	Format       string `json:"format,omitempty"`
@@ -163,8 +176,30 @@ func registerType(pkgName *string, msg *descriptor.DescriptorProto, comments Com
 	pkg.path[msg.GetName()] = path
 }
 
-func emptyResultWithError(err error) ([]*FlattenField, []*DimensionField, []*MetricField, *TimestampField, error) {
+func emptyResultWithError(err error) ([]*FlattenField, *DimensionSpec, []*MetricField, *TimestampField, error) {
 	return nil, nil, nil, nil, err
+}
+
+func getRealType(desc *descriptor.FieldDescriptorProto) (string, error) {
+	fieldType, ok := typeFromFieldType[desc.GetType()]
+	if !ok {
+		return "", fmt.Errorf("unrecognized field type: %s", desc.GetType().String())
+	}
+
+	wkt, ok := typeFromWKT[desc.GetTypeName()]
+	if ok && fieldType == "record" {
+		return wkt, nil
+	}
+	return fieldType, nil
+}
+
+func isTruthlyDruidStringType(desc *descriptor.FieldDescriptorProto) bool {
+	if descriptor.FieldDescriptorProto_TYPE_STRING == desc.GetType() ||
+		desc.GetLabel() == descriptor.FieldDescriptorProto_LABEL_REPEATED ||
+		desc.GetTypeName() == ".google.protobuf.StringValue" {
+		return true
+	}
+	return false
 }
 
 func convertField(
@@ -174,13 +209,15 @@ func convertField(
 	parentMessages map[*descriptor.DescriptorProto]bool,
 	prefixName string,
 	comments Comments,
-	path string) (flattenFields []*FlattenField, dimensionFields []*DimensionField, metricFields []*MetricField, timestampField *TimestampField, err error) {
+	path string) (flattenFields []*FlattenField, dimensionSpec *DimensionSpec, metricFields []*MetricField, timestampField *TimestampField, err error) {
 
+	dimensionSpec = &DimensionSpec{Dimensions: []*DimensionField{}}
 	fieldName := desc.GetName()
-	fieldType, ok := typeFromFieldType[desc.GetType()]
-	if !ok {
-		return emptyResultWithError(fmt.Errorf("unrecognized field type: %s", desc.GetType().String()))
+	fieldType, err := getRealType(desc)
+	if err != nil {
+		return emptyResultWithError(err)
 	}
+	flattenedFieldName := fmt.Sprintf("%s_%s", prefixName, fieldName)
 	fieldMode, ok := modeFromFieldLabel[desc.GetLabel()]
 	if !ok {
 		return emptyResultWithError(fmt.Errorf("unrecognized field label: %s", desc.GetLabel().String()))
@@ -200,19 +237,16 @@ func convertField(
 		Name:       fieldName,
 	}
 	if isFlattened {
-		dimensionField.Name = prefixName + "_" + fieldName
-		flattenField.Name = prefixName + "_" + fieldName
+		dimensionField.Name = flattenedFieldName
+		flattenField.Name = flattenedFieldName
 	}
 
-	wkt, ok := typeFromWKT[desc.GetTypeName()]
-	if ok && fieldType == "record" {
-		dimensionField.Type = wkt
-	} else if fieldType == "record" || fieldMode == "REPEATED" {
+	if fieldType == "record" || fieldMode == "REPEATED" {
 		dimensionField.Type = "string"
 	}
 
 	// truthly string or array or well know type are string
-	if descriptor.FieldDescriptorProto_TYPE_STRING == desc.GetType() || fieldMode == "REPEATED" || desc.GetTypeName() == ".google.protobuf.StringValue" {
+	if isTruthlyDruidStringType(desc) {
 		dimensionField.CreateBitmapIndex = true
 		dimensionField.MultiValueHandling = "SORTED_ARRAY"
 	}
@@ -222,7 +256,7 @@ func convertField(
 		if isFlattened {
 			flattenFields = append(flattenFields, flattenField)
 		}
-		dimensionFields = append(dimensionFields, dimensionField)
+		dimensionSpec.Dimensions = append(dimensionSpec.Dimensions, dimensionField)
 		return
 	}
 
@@ -236,16 +270,24 @@ func convertField(
 	}
 
 	if opt.Timestamp != nil && fieldType == "record" {
-		return emptyResultWithError(fmt.Errorf("can not apply timestamp opts for message field %s", desc.GetName()))
+		return emptyResultWithError(fmt.Errorf("can not apply timestamp opts for record field '%s'", fieldName))
 	}
 
-	if !isFlattened && opt.Timestamp != nil {
+	if opt.Timestamp != nil && opt.Dimension != nil {
+		return emptyResultWithError(fmt.Errorf("can not apply timestamp opts with dimension opts for one field, %s", fieldName))
+	}
+
+	if opt.Timestamp != nil {
 		timestampField = &TimestampField{
 			FieldName: prefixName + fieldName,
 		}
 		if len(opt.Timestamp.Format) > 0 {
 			timestampField.Format = opt.Timestamp.Format
 		}
+	}
+
+	if isFlattened && timestampField != nil {
+		timestampField.FieldName = flattenedFieldName
 	}
 
 	if opt.Flatten != nil && (opt.Dimension != nil || opt.Metric != nil || opt.Timestamp != nil) {
@@ -263,7 +305,15 @@ func convertField(
 				return emptyResultWithError(fmt.Errorf("unsupported multi_value_handling option, get '%s'", opt.Dimension.MultiValueHandling))
 			}
 		}
+		dimensionSpec.Dimensions = append(dimensionSpec.Dimensions, dimensionField)
+	} else if opt.Flatten == nil && opt.Timestamp == nil {
+		dimensionSpec.Dimensions = append(dimensionSpec.Dimensions, dimensionField)
 	}
+
+	if opt.Timestamp != nil {
+		dimensionSpec.DimensionExclusions = []string{dimensionField.Name}
+	}
+
 	if opt.Metric != nil {
 		if len(opt.Metric.MetricName) <= 0 {
 			return emptyResultWithError(fmt.Errorf("metric field name must be set"))
@@ -276,7 +326,7 @@ func convertField(
 			FieldName:          prefixName + fieldName,
 		}
 		if isFlattened {
-			metricField.FieldName = fmt.Sprintf("%s_%s", prefixName, fieldName)
+			metricField.FieldName = flattenedFieldName
 		}
 		if len(opt.Metric.Type) > 0 {
 			if _, ok = supportedMetricAggregators[opt.Metric.Type]; ok {
@@ -306,7 +356,7 @@ func convertField(
 		}
 
 		newPath := fmt.Sprintf("%s.%s", path, fieldName)
-		nestedFlattendFields, nestedDimensionFields, nestedMetricFields, _, err := flattenFieldsForType(curPkg,
+		nestedFlattendFields, nestedDimensionSpec, nestedMetricFields, nestedTimestampField, err := flattenFieldsForType(curPkg,
 			desc.GetTypeName(),
 			nestedPrefixName,
 			parentMessages,
@@ -314,16 +364,18 @@ func convertField(
 		if err != nil {
 			return emptyResultWithError(err)
 		}
-		dimensionFields = append(dimensionFields, nestedDimensionFields...)
+
+		if timestampField != nil && nestedTimestampField != nil {
+			return emptyResultWithError(fmt.Errorf("detected multiple timestamp spec in %s", desc.GetTypeName()))
+		}
+		timestampField = nestedTimestampField
+
+		dimensionSpec.Dimensions = append(dimensionSpec.Dimensions, nestedDimensionSpec.Dimensions...)
+		dimensionSpec.DimensionExclusions = append(dimensionSpec.DimensionExclusions, nestedDimensionSpec.DimensionExclusions...)
 		flattenFields = append(flattenFields, nestedFlattendFields...)
 		metricFields = append(metricFields, nestedMetricFields...)
-	}
-
-	if opt.Flatten == nil {
-		if fieldType == "reocord" {
-			dimensionField.Type = "string"
-		}
-		dimensionFields = append(dimensionFields, dimensionField)
+	} else if isFlattened {
+		flattenFields = append(flattenFields, flattenField)
 	}
 
 	return
@@ -335,7 +387,7 @@ func flattenFieldsForType(curPkg *ProtoPackage,
 	parentMessages map[*descriptor.DescriptorProto]bool,
 	flattenOpts *protos.DruidFlattenFieldOptions,
 	path string,
-) ([]*FlattenField, []*DimensionField, []*MetricField, *TimestampField, error) {
+) ([]*FlattenField, *DimensionSpec, []*MetricField, *TimestampField, error) {
 	recordType, ok, comments, _ := curPkg.lookupType(typeName)
 	if !ok {
 		return emptyResultWithError(fmt.Errorf("no such type named %s", typeName))
@@ -346,7 +398,7 @@ func flattenFieldsForType(curPkg *ProtoPackage,
 		return emptyResultWithError(err)
 	}
 
-	flattenFields, dimensionFields, metricFields, timestampField, err := convertMessageType(curPkg, recordType, fieldMsgOpts, parentMessages, prefixName, comments, path)
+	flattenFields, dimensionSpec, metricFields, timestampField, err := convertMessageType(curPkg, recordType, fieldMsgOpts, parentMessages, prefixName, comments, path)
 	if err != nil {
 		return emptyResultWithError(err)
 	}
@@ -361,7 +413,7 @@ func flattenFieldsForType(curPkg *ProtoPackage,
 	for _, fopts := range flattenFields {
 		fopts.Type = flattenType
 	}
-	return flattenFields, dimensionFields, metricFields, timestampField, err
+	return flattenFields, dimensionSpec, metricFields, timestampField, err
 }
 
 func convertMessageType(
@@ -371,7 +423,7 @@ func convertMessageType(
 	parentMessages map[*descriptor.DescriptorProto]bool,
 	prefixName string,
 	comments Comments,
-	path string) (flattenFields []*FlattenField, dimensionFields []*DimensionField, metricFields []*MetricField, timestampField *TimestampField, err error) {
+	path string) (flattenFields []*FlattenField, dimensionSpec *DimensionSpec, metricFields []*MetricField, timestampField *TimestampField, err error) {
 
 	if parentMessages[msg] {
 		glog.Infof("Detected recursion for message %s, ignoring subfields", *msg.Name)
@@ -384,8 +436,9 @@ func convertMessageType(
 
 	parentMessages[msg] = true
 	timestampField = nil
+	dimensionSpec = &DimensionSpec{}
 	for _, fieldDesc := range msg.GetField() {
-		extractedFalttenFields, extractedDimensionFields, extractedMetricFields, extractedTimestampField, err := convertField(curPkg,
+		extractedFalttenFields, extractedDimensionSpec, extractedMetricFields, extractedTimestampField, err := convertField(curPkg,
 			fieldDesc,
 			opts,
 			parentMessages,
@@ -398,9 +451,10 @@ func convertMessageType(
 			return emptyResultWithError(err)
 		}
 
-		if extractedDimensionFields != nil {
-			dimensionFields = append(dimensionFields, extractedDimensionFields...)
+		if extractedDimensionSpec != nil {
+			dimensionSpec.merge(extractedDimensionSpec)
 		}
+
 		if extractedFalttenFields != nil {
 			flattenFields = append(flattenFields, extractedFalttenFields...)
 		}
@@ -445,7 +499,7 @@ func convertFile(file *descriptor.FileDescriptorProto) ([]*plugin.CodeGeneratorR
 		glog.V(2).Info("Generating ingestion for a message type ", msg.GetName())
 		prefix := ""
 		path := ""
-		flattenFields, dimensionFields, metricFields, timestampField, err := convertMessageType(pkg, msg, opts, make(map[*descriptor.DescriptorProto]bool), prefix, comments, path)
+		flattenFields, dimensionSpec, metricFields, timestampField, err := convertMessageType(pkg, msg, opts, make(map[*descriptor.DescriptorProto]bool), prefix, comments, path)
 		if err != nil {
 			glog.Errorf("Failed to convert %s: %v", name, err)
 			return nil, err
@@ -485,7 +539,7 @@ func convertFile(file *descriptor.FileDescriptorProto) ([]*plugin.CodeGeneratorR
 					DimensionsSpec  *DimensionSpec   `json:"dimensionsSpec,omitempty"`
 					MetricsSpec     []*MetricField   `json:"metricsSpec,omitempty"`
 					GranularitySpec *GranularitySpec `json:"granularitySpec,omitempty"`
-				}{opts.GetDataSourceName(), timestampField, &DimensionSpec{Dimensions: dimensionFields}, metricFields, granularitySpec},
+				}{opts.GetDataSourceName(), timestampField, dimensionSpec, metricFields, granularitySpec},
 				"ioConfig": map[string]interface{}{
 					"inputFormat": struct {
 						Type        string       `json:"type,omitempty"`

@@ -29,6 +29,8 @@ message Bar {
 
   Baz baz = 2 
     [ (gen_druid_spec.spec).flatten = {prefix : "baz_" } ];;
+
+  TimeSpec time_spec = 4[ (gen_druid_spec.spec).flatten = { prefix : "time_spec_" } ];
 }
 
 message Baz {
@@ -37,4 +39,8 @@ message Baz {
     size: 16384 
     type: "thetaSketch"
   }];
+}
+
+message TimeSpec {
+  string date_key = 1[ (gen_druid_spec.spec).timestamp = {} ];
 }
