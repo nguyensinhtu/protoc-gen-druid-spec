@@ -465,7 +465,9 @@ func convertMessageType(
 		if extractedTimestampField != nil && timestampField != nil {
 			return emptyResultWithError(fmt.Errorf("mulitple timestamp options found in one message %s at field %s", msg.GetName(), fieldDesc.GetName()))
 		}
-		timestampField = extractedTimestampField
+		if timestampField == nil {
+			timestampField = extractedTimestampField
+		}
 	}
 
 	parentMessages[msg] = false
