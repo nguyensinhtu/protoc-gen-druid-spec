@@ -3,7 +3,7 @@
   "dataSchema": {
    "dataSource": "bar_proto3_table",
    "timestampSpec": {
-    "column": "time_spec__date_key"
+    "column": "__date_key"
    },
    "dimensionsSpec": {
     "dimensions": [
@@ -19,7 +19,7 @@
      }
     ],
     "dimensionExclusions": [
-     "time_spec__date_key"
+     "__date_key"
     ]
    },
    "metricsSpec": [
@@ -58,7 +58,7 @@
       },
       {
        "type": "jq",
-       "name": "time_spec__date_key",
+       "name": "__date_key",
        "expr": ".time_spec.date_key"
       }
      ],

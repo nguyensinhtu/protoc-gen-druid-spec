@@ -138,6 +138,80 @@ Output
 
 Conceptually, after input data records are read, Druid applies ingestion spec components in a particular order: first flattenSpec (if any), then timestampSpec, then transformSpec, and finally dimensionsSpec and metricsSpec. Keep this in mind when writing your ingestion spec.
 
+## flattenSpec
+Parent field separate with nested field by double underscore '`__`'
+- if you dont set prefix, default will be protobuf field name
+```protobuf
+message Bar {
+   Foo foo = 4[ (gen_druid_spec.spec).flatten = {} ];
+}
+
+message Foo {
+  int32 i1 = 1;
+}
+```
+
+Output
+```json
+{
+  "fields": [
+    {
+      "type": "jq",
+      "name": "foo__i1",
+      "expr": ".foo.i1"
+    }
+  ],
+  "useFieldDiscovery": false
+}
+```
+- if you want to remove parent name set empty prefix  
+```protobuf
+message Bar {
+   Foo foo = 4[ (gen_druid_spec.spec).flatten = {prefix: ""} ];
+}
+
+message Foo {
+  int32 i1 = 1;
+}
+```
+Output
+```json
+{
+  "fields": [
+    {
+      "type": "jq",
+      "name": "i1",
+      "expr": ".foo.i1"
+    }
+  ],
+  "useFieldDiscovery": false
+}
+```
+
+- if you want to use diffirent prefix name
+```protobuf
+message Bar {
+   Foo foo = 4[ (gen_druid_spec.spec).flatten = {prefix: "my_custom_name"} ];
+}
+
+message Foo {
+  int32 i1 = 1;
+}
+```
+Output
+```json
+{
+  "fields": [
+    {
+      "type": "jq",
+      "name": "my_custom_name__i1",
+      "expr": ".foo.i1"
+    }
+  ],
+  "useFieldDiscovery": false
+}
+```
+
 
 ## Query filters
 Support [Selector filter](https://druid.apache.org/docs/latest/querying/filters.html#selector-filter), [Logical expression filters](https://druid.apache.org/docs/latest/querying/filters.html#logical-expression-filters)

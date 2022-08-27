@@ -28,9 +28,9 @@ message Bar {
   } ];
 
   Baz baz = 2 
-    [ (gen_druid_spec.spec).flatten = {prefix : "baz_" } ];;
+    [ (gen_druid_spec.spec).flatten = {prefix : "baz" } ];;
 
-  TimeSpec time_spec = 4[ (gen_druid_spec.spec).flatten = { prefix : "time_spec_" } ];
+  TimeSpec time_spec = 4[ (gen_druid_spec.spec).flatten = { prefix : "" } ];
 }
 
 message Baz {
