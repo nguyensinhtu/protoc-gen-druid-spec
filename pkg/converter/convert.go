@@ -217,7 +217,12 @@ func convertField(
 	if err != nil {
 		return emptyResultWithError(err)
 	}
-	flattenedFieldName := fmt.Sprintf("%s_%s", prefixName, fieldName)
+	flattenedFieldName := fieldName
+	// in case set prefix = ""
+	if len(prefixName) > 0 {
+		flattenedFieldName = fmt.Sprintf("%s_%s", prefixName, fieldName)
+	}
+
 	fieldMode, ok := modeFromFieldLabel[desc.GetLabel()]
 	if !ok {
 		return emptyResultWithError(fmt.Errorf("unrecognized field label: %s", desc.GetLabel().String()))
@@ -345,14 +350,13 @@ func convertField(
 	}
 
 	if opt.Flatten != nil {
-		nestedPrefixName := fieldName + "_"
+		nestedPrefixName := fieldName
 		if opt.Flatten.Prefix != nil {
 			nestedPrefixName = *opt.Flatten.Prefix
 		}
-		if isFlattened {
+		nestedPrefixName = fmt.Sprintf("%s_", nestedPrefixName)
+		if isFlattened && len(prefixName) > 0 {
 			nestedPrefixName = fmt.Sprintf("%s_%s", prefixName, nestedPrefixName)
-		} else {
-			nestedPrefixName = fmt.Sprintf("%s%s", prefixName, nestedPrefixName)
 		}
 
 		newPath := fmt.Sprintf("%s.%s", path, fieldName)
@@ -580,11 +584,6 @@ func getDruidOpts(msg *descriptor.DescriptorProto) (*protos.DruidIngestionOption
 	return proto.GetExtension(options, protos.E_DruidOpts).(*protos.DruidIngestionOptions), nil
 }
 
-// handleSingleMessageOpt handles --druid-spec_opt=single-message in protoc params.
-// providing that param tells protoc-gen-bq-schema to treat each proto files only contains one top-level type.
-// if a file contains no message types, then this function simply does nothing.
-// if a file contains more than one message types, then only the first message type will be processed.
-// in that case, the table names will follow the proto file names.
 func handleSingleMessageOpt(file *descriptor.FileDescriptorProto, requestParam string) {
 	if !strings.Contains(requestParam, "single-message") || len(file.GetMessageType()) == 0 {
 		return

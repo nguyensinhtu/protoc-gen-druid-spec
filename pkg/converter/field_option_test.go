@@ -166,7 +166,7 @@ func TestFlatten(t *testing.T) {
 				options <
 					[gen_druid_spec.spec] <
 						flatten <
-							prefix: "baz_"
+							prefix: "baz"
 						>
 					>
 				>
@@ -430,7 +430,7 @@ func TestMetricInFlattenSpec(t *testing.T) {
 			options <
 				[gen_druid_spec.spec] <
 					flatten <
-						prefix: "baz_"
+						prefix: "baz"
 					>
 				>
 			>
