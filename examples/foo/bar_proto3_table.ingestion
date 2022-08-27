@@ -47,6 +47,9 @@
    }
   },
   "ioConfig": {
+   "consumerProperties": {
+    "bootstrap.servers": "PLAINTEXT://abc.com"
+   },
    "inputFormat": {
     "type": "json",
     "flattenSpec": {
@@ -64,7 +67,10 @@
      ],
      "useFieldDiscovery": false
     }
-   }
+   },
+   "topic": "abc",
+   "useEarliestOffset": false
   }
- }
+ },
+ "type": "kafka"
 }

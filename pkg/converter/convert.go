@@ -86,6 +86,13 @@ var (
 		"none": true, "all": true, "second": true, "minute": true, "fifteen_minute": true, "thirty_minute": true,
 		"day": true, "week": true, "month": true, "quarter": true, "year": true,
 	}
+
+	supportedIngestionType = map[string]bool{
+		"index_parallel": true,
+		"index":          true,
+		"index_hadoop":   true,
+		"kafka":          true,
+	}
 )
 
 type DimensionField struct {
@@ -515,26 +522,57 @@ func convertFile(file *descriptor.FileDescriptorProto) ([]*plugin.CodeGeneratorR
 		if len(flattenFields) > 0 {
 			flattenSpec = &FlattenSpec{UseFieldDiscovery: false, FlattenFields: flattenFields}
 		}
-		if opts.UseFieldDiscovery != nil && flattenSpec == nil {
-			flattenSpec = &FlattenSpec{UseFieldDiscovery: *opts.UseFieldDiscovery}
+
+		if opts.IoConfig != nil {
+			if opts.IoConfig.UseFieldDiscovery != nil && flattenSpec != nil {
+				flattenSpec = &FlattenSpec{UseFieldDiscovery: *opts.IoConfig.UseFieldDiscovery}
+			}
 		}
 
 		granularitySpec := &GranularitySpec{Type: "uniform", Rollup: true, Query: "none", Segment: "day", Intervals: make([]*string, 0)}
-		if len(opts.QueryGranularity) > 0 {
-			if _, exist := supportedGranularities[strings.ToLower(opts.QueryGranularity)]; !exist {
-				return nil, fmt.Errorf("unsupported queryGranularity, got %s", opts.QueryGranularity)
+		if granularityOpts := opts.Granularity; granularityOpts != nil {
+			if len(granularityOpts.QueryGranularity) > 0 {
+				if _, exist := supportedGranularities[strings.ToLower(granularityOpts.QueryGranularity)]; !exist {
+					return nil, fmt.Errorf("unsupported queryGranularity, got %s", granularityOpts.QueryGranularity)
+				}
+				granularitySpec.Query = strings.ToLower(granularityOpts.QueryGranularity)
 			}
-			granularitySpec.Query = strings.ToLower(opts.QueryGranularity)
+
+			if len(granularityOpts.SegmentGranularity) > 0 {
+				if _, exist := supportedGranularities[strings.ToLower(granularityOpts.SegmentGranularity)]; !exist {
+					return nil, fmt.Errorf("unsupported segmentGranularity, got %s", granularityOpts.SegmentGranularity)
+				}
+				granularitySpec.Segment = strings.ToLower(granularityOpts.SegmentGranularity)
+			}
+			if granularityOpts.Rollup != nil {
+				granularitySpec.Rollup = *granularityOpts.Rollup
+			}
 		}
 
-		if len(opts.SegmentGranularity) > 0 {
-			if _, exist := supportedGranularities[strings.ToLower(opts.SegmentGranularity)]; !exist {
-				return nil, fmt.Errorf("unsupported segmentGranularity, got %s", opts.QueryGranularity)
-			}
-			granularitySpec.Segment = strings.ToLower(opts.SegmentGranularity)
+		ioConfig := map[string]interface{}{
+			"inputFormat": struct {
+				Type        string       `json:"type,omitempty"`
+				FlattenSpec *FlattenSpec `json:"flattenSpec,omitempty"`
+			}{"json", flattenSpec},
 		}
-		if opts.Rollup != nil {
-			granularitySpec.Rollup = *opts.Rollup
+
+		if configuredIOConfig := opts.IoConfig; configuredIOConfig != nil {
+			if len(configuredIOConfig.Topic) > 0 {
+				ioConfig["topic"] = configuredIOConfig.Topic
+			}
+			if configuredIOConfig.UseEarliestOffset != nil {
+				ioConfig["useEarliestOffset"] = *configuredIOConfig.UseEarliestOffset
+			}
+
+			if len(configuredIOConfig.BootstrapServers) > 0 {
+				ioConfig["consumerProperties"] = map[string]interface{}{
+					"bootstrap.servers": configuredIOConfig.BootstrapServers,
+				}
+			}
+
+			if len(configuredIOConfig.Type) > 0 {
+				ioConfig["Type"] = configuredIOConfig.Type
+			}
 		}
 
 		ingestion := map[string]interface{}{
@@ -546,13 +584,15 @@ func convertFile(file *descriptor.FileDescriptorProto) ([]*plugin.CodeGeneratorR
 					MetricsSpec     []*MetricField   `json:"metricsSpec,omitempty"`
 					GranularitySpec *GranularitySpec `json:"granularitySpec,omitempty"`
 				}{opts.GetDataSourceName(), timestampField, dimensionSpec, metricFields, granularitySpec},
-				"ioConfig": map[string]interface{}{
-					"inputFormat": struct {
-						Type        string       `json:"type,omitempty"`
-						FlattenSpec *FlattenSpec `json:"flattenSpec,omitempty"`
-					}{"json", flattenSpec},
-				},
+				"ioConfig": ioConfig,
 			},
+		}
+
+		if len(opts.IngestionType) > 0 {
+			if _, exists := supportedIngestionType[opts.IngestionType]; !exists {
+				return nil, fmt.Errorf("unsupported ingestion type, got %s", opts.IngestionType)
+			}
+			ingestion["type"] = opts.IngestionType
 		}
 
 		ingestionJson, err := json.MarshalIndent(ingestion, "", " ")

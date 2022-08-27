@@ -11,8 +11,17 @@ import "google/protobuf/timestamp.proto";
 message Bar {
   option (gen_druid_spec.druid_opts) = {
     data_source_name: "bar_proto3_table"
-    segment_granularity: "day"
-    query_granularity: "day"
+    granularity: {
+      segment_granularity: "day"
+      query_granularity: "day"
+    }
+    io_config: {
+      topic: "abc"
+      bootstrap_servers: "PLAINTEXT://abc.com"
+      use_earliest_offset: false
+    }
+    
+    ingestion_type: "kafka"
   };
 
   string client_id = 1 [ (gen_druid_spec.spec) = {

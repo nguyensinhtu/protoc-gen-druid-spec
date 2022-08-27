@@ -212,6 +212,58 @@ Output
 }
 ```
 
-
+## timestampSpec
+- if field is set to be timestamp it will be ignore in dimensionExclusions
+- Can not apply flattenSpec, metricSpec, dimensionSpec with timestampSpec
+- Can not apply timestampSpec to record type
+- Can not apply multiple timestampSpec to one configured data source
 ## Query filters
-Support [Selector filter](https://druid.apache.org/docs/latest/querying/filters.html#selector-filter), [Logical expression filters](https://druid.apache.org/docs/latest/querying/filters.html#logical-expression-filters)
+TODO - Support [Selector filter](https://druid.apache.org/docs/latest/querying/filters.html#selector-filter), [Logical expression filters](https://druid.apache.org/docs/latest/querying/filters.html#logical-expression-filters)
+
+## IO Config
+We do not recommend config the IOConfig for specific schema, because we can re-use one schema for multiple input source
+, but if you want you still config it
+```protobuf
+message Bar {
+  option (gen_druid_spec.druid_opts) = {
+    data_source_name: "bar_proto3_table"
+    
+    io_config: {
+      topic: "abc"
+      bootstrap_servers: "PLAINTEXT://abc.com"
+      use_earliest_offset: false
+    }
+    
+    ingestion_type: "kafka"
+  };
+}
+```
+Output
+```json
+{
+ "spec": {
+  "dataSchema": {
+   "dataSource": "bar_proto3_table",
+   "dimensionsSpec": {},
+   "granularitySpec": {
+    "type": "uniform",
+    "segmentGranularity": "day",
+    "queryGranularity": "none",
+    "rollup": true,
+    "intervals": []
+   }
+  },
+  "ioConfig": {
+   "consumerProperties": {
+    "bootstrap.servers": "PLAINTEXT://abc.com"
+   },
+   "inputFormat": {
+    "type": "json"
+   },
+   "topic": "abc",
+   "useEarliestOffset": false
+  }
+ },
+ "type": "kafka"
+}
+```
