@@ -34,7 +34,7 @@ message Bar {
   string client_id = 1 [ (gen_druid_spec.spec) = {
     dimension : {
       multi_value_handling : "SORTED_SET"
-      create_bitmap_index : true
+      create_bitmap_index : {value: true}
     }
     metric : {
       metric_name : "client_id_sketch"
@@ -140,7 +140,7 @@ Conceptually, after input data records are read, Druid applies ingestion spec co
 
 ## flattenSpec
 Parent field separate with nested field by double underscore '`__`'
-- if you dont set prefix, default will be protobuf field name
+- if you dont set prefix or empty prefix, default will be protobuf field name
 ```protobuf
 message Bar {
    Foo foo = 4[ (gen_druid_spec.spec).flatten = {} ];
@@ -164,10 +164,10 @@ Output
   "useFieldDiscovery": false
 }
 ```
-- if you want to remove parent name set empty prefix  
+- if you want to remove parent name set ignore_name  
 ```protobuf
 message Bar {
-   Foo foo = 4[ (gen_druid_spec.spec).flatten = {prefix: ""} ];
+   Foo foo = 4[ (gen_druid_spec.spec).flatten = {ignore_name: true} ];
 }
 
 message Foo {

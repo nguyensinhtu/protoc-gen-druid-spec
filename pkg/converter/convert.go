@@ -308,7 +308,7 @@ func convertField(
 
 	if opt.Dimension != nil {
 		if opt.Dimension.CreateBitmapIndex != nil {
-			dimensionField.CreateBitmapIndex = *opt.Dimension.CreateBitmapIndex
+			dimensionField.CreateBitmapIndex = opt.Dimension.CreateBitmapIndex.Value
 		}
 		if len(opt.Dimension.MultiValueHandling) > 0 {
 			if _, exists := supportedMultiValueHanldingOpts[opt.Dimension.MultiValueHandling]; exists {
@@ -358,12 +358,17 @@ func convertField(
 
 	if opt.Flatten != nil {
 		nestedPrefixName := fieldName
-		if opt.Flatten.Prefix != nil {
-			nestedPrefixName = *opt.Flatten.Prefix
+		if len(opt.Flatten.Prefix) > 0 {
+			nestedPrefixName = opt.Flatten.Prefix
 		}
-		nestedPrefixName = fmt.Sprintf("%s_", nestedPrefixName)
-		if isFlattened && len(prefixName) > 0 {
-			nestedPrefixName = fmt.Sprintf("%s_%s", prefixName, nestedPrefixName)
+
+		if opt.Flatten.IgnoreName {
+			nestedPrefixName = prefixName
+		} else {
+			nestedPrefixName = fmt.Sprintf("%s_", nestedPrefixName)
+			if isFlattened && len(prefixName) > 0 {
+				nestedPrefixName = fmt.Sprintf("%s_%s", prefixName, nestedPrefixName)
+			}
 		}
 
 		newPath := fmt.Sprintf("%s.%s", path, fieldName)
@@ -520,13 +525,10 @@ func convertFile(file *descriptor.FileDescriptorProto) ([]*plugin.CodeGeneratorR
 
 		var flattenSpec *FlattenSpec
 		if len(flattenFields) > 0 {
-			flattenSpec = &FlattenSpec{UseFieldDiscovery: false, FlattenFields: flattenFields}
+			flattenSpec = &FlattenSpec{FlattenFields: flattenFields}
 		}
-
 		if opts.IoConfig != nil {
-			if opts.IoConfig.UseFieldDiscovery != nil && flattenSpec != nil {
-				flattenSpec = &FlattenSpec{UseFieldDiscovery: *opts.IoConfig.UseFieldDiscovery}
-			}
+			flattenSpec.UseFieldDiscovery = opts.IoConfig.UseFieldDiscovery
 		}
 
 		granularitySpec := &GranularitySpec{Type: "uniform", Rollup: true, Query: "none", Segment: "day", Intervals: make([]*string, 0)}
@@ -544,9 +546,7 @@ func convertFile(file *descriptor.FileDescriptorProto) ([]*plugin.CodeGeneratorR
 				}
 				granularitySpec.Segment = strings.ToLower(granularityOpts.SegmentGranularity)
 			}
-			if granularityOpts.Rollup != nil {
-				granularitySpec.Rollup = *granularityOpts.Rollup
-			}
+			granularitySpec.Rollup = granularityOpts.Rollup
 		}
 
 		ioConfig := map[string]interface{}{
@@ -560,9 +560,7 @@ func convertFile(file *descriptor.FileDescriptorProto) ([]*plugin.CodeGeneratorR
 			if len(configuredIOConfig.Topic) > 0 {
 				ioConfig["topic"] = configuredIOConfig.Topic
 			}
-			if configuredIOConfig.UseEarliestOffset != nil {
-				ioConfig["useEarliestOffset"] = *configuredIOConfig.UseEarliestOffset
-			}
+			ioConfig["useEarliestOffset"] = configuredIOConfig.UseEarliestOffset
 
 			if len(configuredIOConfig.BootstrapServers) > 0 {
 				ioConfig["consumerProperties"] = map[string]interface{}{

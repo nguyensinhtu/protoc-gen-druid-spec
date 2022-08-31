@@ -3,7 +3,7 @@
   "dataSchema": {
    "dataSource": "bar_proto3_table",
    "timestampSpec": {
-    "column": "__date_key"
+    "column": "time_spec__date_key"
    },
    "dimensionsSpec": {
     "dimensions": [
@@ -19,7 +19,7 @@
      }
     ],
     "dimensionExclusions": [
-     "__date_key"
+     "time_spec__date_key"
     ]
    },
    "metricsSpec": [
@@ -42,7 +42,7 @@
     "type": "uniform",
     "segmentGranularity": "day",
     "queryGranularity": "day",
-    "rollup": true,
+    "rollup": false,
     "intervals": []
    }
   },
@@ -61,7 +61,7 @@
       },
       {
        "type": "jq",
-       "name": "__date_key",
+       "name": "time_spec__date_key",
        "expr": ".time_spec.date_key"
       }
      ],

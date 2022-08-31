@@ -11,16 +11,16 @@ extend google.protobuf.MessageOptions {
 
 message DruidIOConfigMessageOptions {
   string topic = 1;
-  optional bool use_field_discovery = 2;
+  bool use_field_discovery = 2;
   string bootstrap_servers = 3; 
-  optional bool use_earliest_offset = 4;
+  bool use_earliest_offset = 4;
   string type = 5;
 }
 
 message DruidGranularityMessageOptions {
   string segment_granularity = 1;
   string query_granularity = 2;
-  optional bool rollup = 3;
+  bool rollup = 3;
 }
 
 message DruidIngestionOptions {

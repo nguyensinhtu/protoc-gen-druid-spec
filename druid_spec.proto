@@ -4,7 +4,7 @@ package gen_druid_spec;
 option go_package = "github.com/nguyensinhtu/protoc-gen-druid-spec/protos";
 
 import "google/protobuf/descriptor.proto";
-
+import "google/protobuf/wrappers.proto";
 
 // dimensionsSpec
 // Druid applies ingestion spec components in a particular order: first flattenSpec (if any), 
@@ -12,14 +12,17 @@ import "google/protobuf/descriptor.proto";
 message DruidDimensionFieldOptions {
   string multi_value_handling = 2;
 
-  optional bool create_bitmap_index = 3; 
+  google.protobuf.BoolValue create_bitmap_index = 3; 
 }
 
 // flattenSpec
 message DruidFlattenFieldOptions {
-  optional string prefix = 1;
+  string prefix = 1;
   // type will be jq or path
   string type = 2;
+
+  // dont inluce current field name to output flatten name
+  bool ignore_name = 3;
 }
 
 message DruidMetricFieldOptions {
@@ -36,10 +39,10 @@ message DruidTimestampFieldOptions {
 } 
 
 message DruidSpecFieldOptions {
-  optional DruidDimensionFieldOptions dimension = 1;
-  optional DruidFlattenFieldOptions flatten = 2;
-  optional DruidTimestampFieldOptions timestamp = 3;
-  optional DruidMetricFieldOptions metric = 4;
+  DruidDimensionFieldOptions dimension = 1;
+  DruidFlattenFieldOptions flatten = 2;
+  DruidTimestampFieldOptions timestamp = 3;
+  DruidMetricFieldOptions metric = 4;
   bool ignore = 5; 
 }
 
