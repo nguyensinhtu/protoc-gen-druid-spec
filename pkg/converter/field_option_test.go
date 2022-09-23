@@ -157,6 +157,11 @@ func TestFlatten(t *testing.T) {
 		message_type <
 			name: "FooProto"
 			field < name: "i1" number: 1 type: TYPE_INT32 label: LABEL_OPTIONAL >
+			field < name: "i3" number: 1 type: TYPE_STRING label: LABEL_OPTIONAL 
+			options < 
+			[gen_druid_spec.spec] < flatten < output_name: "rename_i3" > >	
+				>
+			>
 			field < 
 				name: "bar" 
 				number: 2 
@@ -177,6 +182,11 @@ func TestFlatten(t *testing.T) {
 			name: "BarProto"
 			field < name: "i1" number: 1 type: TYPE_INT32 label: LABEL_OPTIONAL >
 			field < name: "i2" number: 1 type: TYPE_STRING label: LABEL_OPTIONAL >
+			field < name: "nested_i3" number: 1 type: TYPE_STRING label: LABEL_OPTIONAL 
+				options < 
+					[gen_druid_spec.spec] < flatten < output_name: "rename_nested_i3" > >	
+				>
+			>
 			field <
 				name: "zoo_in_bar" 
 				number: 2 
@@ -212,6 +222,12 @@ func TestFlatten(t *testing.T) {
 								"type": "long"
 							},
 							{
+								"createBitmapIndex": true,
+								"multiValueHandling": "SORTED_ARRAY",
+								"name": "rename_i3",
+								"type": "string"
+							},
+							{
 								"name": "baz__i1",
 								"type": "long"
 							},
@@ -219,6 +235,12 @@ func TestFlatten(t *testing.T) {
 								"createBitmapIndex": true,
 								"multiValueHandling": "SORTED_ARRAY",
 								"name": "baz__i2",
+								"type": "string"
+							},
+							{
+								"createBitmapIndex": true,
+								"multiValueHandling": "SORTED_ARRAY",
+								"name": "baz_rename_nested_i3",
 								"type": "string"
 							},
 							{
@@ -246,6 +268,11 @@ func TestFlatten(t *testing.T) {
 						"flattenSpec": {
 							"fields": [
 								{
+									"expr": ".i3",
+									"name": "rename_i3",
+									"type": "jq"
+								},
+								{
 									"expr": ".bar.i1",
 									"name": "baz__i1",
 									"type": "jq"
@@ -253,6 +280,11 @@ func TestFlatten(t *testing.T) {
 								{
 									"expr": ".bar.i2",
 									"name": "baz__i2",
+									"type": "jq"
+								},
+								{
+									"expr": ".bar.nested_i3",
+									"name": "baz_rename_nested_i3",
 									"type": "jq"
 								},
 								{

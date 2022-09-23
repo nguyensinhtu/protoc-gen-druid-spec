@@ -23,6 +23,8 @@ message DruidFlattenFieldOptions {
 
   // don't include current field name to output flatten name
   bool ignore_name = 3;
+
+  string output_name = 4;
 }
 
 message DruidMetricFieldOptions {

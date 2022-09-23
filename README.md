@@ -212,6 +212,30 @@ Output
 }
 ```
 
+- if you want use diffirent name set output_name
+```protobuf
+message Bar {
+   Foo foo = 4[ (gen_druid_spec.spec).flatten = {output_name: "rename_foo"} ];
+}
+
+message Foo {
+  int32 i1 = 1;
+}
+```
+Output
+```json
+{
+  "fields": [
+    {
+      "type": "jq",
+      "name": "rename_foo__i1",
+      "expr": ".rename.i1"
+    }
+  ],
+  "useFieldDiscovery": false
+}
+```
+
 ## timestampSpec
 - if field is set to be timestamp it will be ignore in dimensionExclusions
 - Can not apply flattenSpec, metricSpec, dimensionSpec with timestampSpec

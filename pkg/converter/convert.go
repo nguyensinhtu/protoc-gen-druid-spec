@@ -277,10 +277,6 @@ func convertField(
 		return
 	}
 
-	if opt.Flatten != nil && fieldType != "record" {
-		return emptyResultWithError(fmt.Errorf("can not apply flatten for primitive field, got field %s, type %s", desc.GetName(), desc.GetType().String()))
-	}
-
 	if opt.Timestamp != nil && fieldType == "record" {
 		return emptyResultWithError(fmt.Errorf("can not apply timestamp opts for record field '%s'", fieldName))
 	}
@@ -364,6 +360,8 @@ func convertField(
 
 		if opt.Flatten.IgnoreName {
 			nestedPrefixName = prefixName
+		} else if len(opt.Flatten.OutputName) > 0 {
+			nestedPrefixName = fmt.Sprintf("%s%s", prefixName, opt.Flatten.OutputName)
 		} else {
 			nestedPrefixName = fmt.Sprintf("%s_", nestedPrefixName)
 			if isFlattened && len(prefixName) > 0 {
@@ -372,6 +370,28 @@ func convertField(
 		}
 
 		newPath := fmt.Sprintf("%s.%s", path, fieldName)
+
+		// flatten primitive field
+		if fieldType != "record" {
+			newDimensionField := dimensionField
+			newDimensionField.Name = nestedPrefixName
+			dimensionSpec.Dimensions = append(dimensionSpec.Dimensions, newDimensionField)
+
+			flattenField = &FlattenField{Type: "jq", Name: nestedPrefixName, Expression: newPath}
+			if len(opt.Flatten.Type) > 0 && opt.Flatten.Type != "jq" {
+				return emptyResultWithError(fmt.Errorf("unsupproted flatten type, got %s", opt.Flatten.Type))
+			}
+
+			if len(opt.Flatten.Type) > 0 {
+				flattenField.Type = opt.Flatten.Type
+			}
+
+			flattenFields = append(flattenFields, flattenField)
+
+			return
+		}
+
+		// flatten message field
 		nestedFlattendFields, nestedDimensionSpec, nestedMetricFields, nestedTimestampField, err := flattenFieldsForType(curPkg,
 			desc.GetTypeName(),
 			nestedPrefixName,
