@@ -21,7 +21,7 @@ message DruidFlattenFieldOptions {
   // type will be jq or path
   string type = 2;
 
-  // dont inluce current field name to output flatten name
+  // don't include current field name to output flatten name
   bool ignore_name = 3;
 }
 
